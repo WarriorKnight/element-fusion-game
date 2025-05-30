@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import Element from './Element';
 import { ElementData } from './Toolbar';
@@ -22,6 +22,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
     onDropElementRef.current = onDropElement;
   }, [onDropElement]);
 
+  const [isLoading, setIsLoading] = useState(false);
   const combinationTriggeredRef = useRef(false);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -58,21 +59,29 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
         const { x: x1, y: y1 } = collided[0];
         const { x: x2, y: y2 } = collided[1];
         (async () => {
-          const response = await fetch('/api/element', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name1: collided[0].name, name2: collided[1].name })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Combined element:', data.element);
-            const combinedElement = {
-              ...data.element,
-              instanceId: `${data.element._id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-              x: (x1 + x2) / 2,
-              y: (y1 + y2) / 2
-            };
-            onDropElementRef.current(combinedElement, [collided[0].instanceId, collided[1].instanceId]);
+          setIsLoading(true);
+          try {
+            const response = await fetch('/api/element', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name1: collided[0].name, name2: collided[1].name })
+            });
+            if (response.ok) {
+              const data = await response.json();
+              console.log('Combined element:', data.element);
+              const combinedElement = {
+                ...data.element,
+                instanceId: `${data.element._id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                x: (x1 + x2) / 2,
+                y: (y1 + y2) / 2
+              };
+              // Pass parent IDs (from collided elements instanceIds)
+              onDropElementRef.current(combinedElement, [collided[0].instanceId, collided[1].instanceId]);
+            }
+          } catch (error) {
+            console.error('Error combining elements:', error);
+          } finally {
+            setIsLoading(false);
           }
         })();
       }
@@ -85,7 +94,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
     <div
       ref={setNodeRef}
       className={`w-full h-[600px] border rounded-4xl relative overflow-hidden transition-colors duration-200
-         ${isOver ? ' border-green-300 bg-black' : 'border-gray-200'}`}
+         ${isOver ? 'border-green-300 bg-black' : 'border-gray-200'}`}
       style={{ position: 'relative' }}
     >
       {placedElements.map(el => (
@@ -98,10 +107,17 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
             left: el.x,
             top: el.y,
             touchAction: 'none',
-            ...(overlapSet.has(el.instanceId) && { border: '2px solid red' })
+            ...(overlapSet.has(el.instanceId) && { border: 'opacity-25' })
           }} 
         />
       ))}
+      {isLoading && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"
+        >
+          <div className="loader">Loading...</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,7 @@ export default function Element({ id, data, isOverlay, style: customStyle }: Dra
           src={data.iconUrl}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-contain pointer-events-none blur-[6px]"
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none blur-[25px]"
           style={{ zIndex: 0 }}
           width={1024}
           height={1024}

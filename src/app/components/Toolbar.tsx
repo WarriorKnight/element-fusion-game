@@ -25,13 +25,15 @@ export default function Toolbar({ elements }: ToolbarProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-3xl flex flex-wrap m-5 p-2.5 border border-gray-300 gap-2.5 items-center min-h-[76px] 
+      className={`rounded-3xl flex flex-wrap m-5 p-2.5 border border-gray-300 gap-2.5 items-center min-h-[76px]
          transition-colors duration-200
          ${isOver ? 'border-red-400' : ''}`}
     >
       {elements.length > 0 ? (
         elements.map((el, idx) => (
-          <Element key={`${el._id}-${idx}`} id={`toolbar-${el._id}`} data={el} />
+          <div key={`${el._id}-${idx}`} className="flex-1 min-w-[50px]">
+            <Element id={`toolbar-${el._id}`} data={el} />
+          </div>
         ))
       ) : (
         !isOver && <p className="text-gray-500">No elements found.</p>

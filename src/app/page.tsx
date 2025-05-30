@@ -1,103 +1,190 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  UniqueIdentifier,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import Toolbar, { ElementData } from './components/Toolbar';
+import Canvas, { PlacedElementData } from './components/Canvas';
+import Element from './components/Element';
+
+export default function DesignerPage() {
+  const [placedElements, setPlacedElements] = useState<PlacedElementData[]>([]);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [activeElementData, setActiveElementData] = useState<ElementData | null>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id);
+    if (event.active.data.current?.elementData) {
+      setActiveElementData(event.active.data.current.elementData as ElementData);
+    }
+  };
+
+  async function handleCombineElements(elementA, elementB) {
+    console.log('Combining elements:', elementA, elementB);
+    const response = await fetch('/api/combine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ elementA, elementB }),
+    });
+    const result = await response.json();
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over, delta } = event;
+    setActiveId(null);
+    setActiveElementData(null);
+
+    if (!over) return;
+
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    if (
+      over.id !== active.id &&
+      typeof over.id === 'string' &&
+      over.id.startsWith('canvas-el-') &&
+      typeof active.id === 'string' &&
+      active.id.startsWith('canvas-el-') &&
+      activeData?.type === 'element' &&
+      overData?.type === 'element'
+    ) {
+      const elementA = placedElements.find((el) => el.instanceId === active.id);
+      const elementB = placedElements.find((el) => el.instanceId === over.id);
+
+      if (elementA && elementB) {
+        handleCombineElements(elementA, elementB);
+        return;
+      } else {
+        console.error(
+          'Combine error: Draggable or droppable element data not found in placedElements state for an element-on-element drop.',
+          { activeId: active.id, overId: over.id, elementA_found: !!elementA, elementB_found: !!elementB }
+        );
+        return;
+      }
+    }
+
+    if (overData?.type === 'toolbar' && activeData?.type === 'element' && !active.id.toString().startsWith('toolbar-')) {
+      setPlacedElements((prevElements) =>
+        prevElements.filter((el) => el.instanceId !== active.id)
+      );
+      return;
+    }
+
+    if (activeData?.elementData && overData?.type === 'canvas') {
+      const element = activeData.elementData as ElementData;
+      const isToolbarItem = active.id.toString().startsWith('toolbar-');
+
+      if (isToolbarItem) {
+        const canvasViewportRect = over.rect;
+
+        let dropX = 0;
+        let dropY = 0;
+
+        if (canvasViewportRect && event.activatorEvent) {
+          let initialPointerClientX = 0;
+          let initialPointerClientY = 0;
+
+          if (event.activatorEvent instanceof MouseEvent) {
+            initialPointerClientX = event.activatorEvent.clientX;
+            initialPointerClientY = event.activatorEvent.clientY;
+          } else if (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0) {
+            initialPointerClientX = event.activatorEvent.touches[0].clientX;
+            initialPointerClientY = event.activatorEvent.touches[0].clientY;
+          } else {
+            const activeTranslatedRect = active.rect.current.translated;
+            if (activeTranslatedRect) {
+              dropX = activeTranslatedRect.left - canvasViewportRect.left;
+              dropY = activeTranslatedRect.top - canvasViewportRect.top;
+            }
+          }
+
+          const finalPointerClientX = initialPointerClientX + delta.x;
+          const finalPointerClientY = initialPointerClientY + delta.y;
+
+          dropX = finalPointerClientX - canvasViewportRect.left;
+          dropY = finalPointerClientY - canvasViewportRect.top;
+
+          const elementWidth = active.rect.current.initial?.width ?? 96;
+          const elementHeight = active.rect.current.initial?.height ?? 76;
+          dropX -= elementWidth / 2;
+          dropY -= elementHeight / 2;
+
+        } else if (canvasViewportRect) {
+          const activeTranslatedRect = active.rect.current.translated;
+          if (activeTranslatedRect) {
+            dropX = activeTranslatedRect.left - canvasViewportRect.left;
+            dropY = activeTranslatedRect.top - canvasViewportRect.top;
+          } else {
+            dropX = canvasViewportRect.width / 2 - (active.rect.current.initial?.width ?? 96) / 2;
+            dropY = canvasViewportRect.height / 2 - (active.rect.current.initial?.height ?? 76) / 2;
+          }
+        }
+
+        const newElement: PlacedElementData = {
+          ...element,
+          instanceId: `canvas-el-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          x: Math.max(0, dropX),
+          y: Math.max(0, dropY),
+        };
+        setPlacedElements((prev) => [...prev, newElement]);
+      } else {
+        setPlacedElements((prev) =>
+          prev.map((el) =>
+            el.instanceId === active.id
+              ? { ...el, x: Math.max(0, el.x + delta.x), y: Math.max(0, el.y + delta.y) }
+              : el
+          )
+        );
+      }
+    }
+  };
+
+  function handleDropElement(newElement: PlacedElementData, parentIds?: string[]) {
+    setPlacedElements(prevElements => {
+      const filtered = parentIds ? prevElements.filter(el => !parentIds.includes(el.instanceId)) : prevElements;
+      return [...filtered, newElement];
+    });
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex flex-col h-screen">
+        <Toolbar />
+        <div className="flex-grow p-4">
+          <Canvas placedElements={placedElements} onDropElement={handleDropElement} />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </div>
+      <DragOverlay dropAnimation={null}>
+        {activeId && activeElementData ? (
+          <Element
+            id={`${activeId}-overlay`}
+            data={activeElementData}
+            isOverlay
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

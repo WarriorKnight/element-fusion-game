@@ -31,7 +31,7 @@ Invent a new element by combining Element 1 and Element 2. Consider their physic
 combinations. The new element's name should be simple, concise, and commonly understood (one word). Do NOT blend parts of the input names.
 
 Return your response as JSON with two keys: "name" (string) and "description" (string).
-Example: {"name": "Dust", "description": "Tiny particles of earth carried by the wind."}
+Example: {"name": "Mud", "description": "A thick, dark brown, wet, blocky blob or clumpy puddle."}
 `;
 
   const gptResponseObject = await openai.responses.create({
@@ -60,8 +60,8 @@ export async function generateImage(
   name: string,
   description: string,
 ): Promise<string> {
-  const imagePrompt = `${name} (${description}). Glossy 3D icon rendered in a pixelated style with a frosted glass effect,
-  featuring defined edges and a vibrant color scheme on a transparent background.`;
+  //return fs.readFile('./src/debug/base64.txt', 'utf-8');
+  const imagePrompt = `A **highly detailed, symbolic 3D voxel icon** of ${name} (${description}). The icon is rendered with a **translucent, glossy frosted glass material**, clearly revealing its **pixelated structure** while maintaining a **smooth, shiny surface**. It features **sharp, defined blocky edges** and a **vibrant, dynamic color scheme**, including gradients where appropriate. Rendered with **subtle lighting and highlights** that emphasize the frosted finish, and a **strong, consistent glowing outline**. Presented on a **transparent background**. **No text** integrated into the icon design.`;
 
   const imageGenResponse = await openai.responses.create({
     model: 'gpt-4.1-mini',

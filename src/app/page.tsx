@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -22,12 +22,30 @@ export default function DesignerPage() {
   const [placedElements, setPlacedElements] = useState<PlacedElementData[]>([]);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [activeElementData, setActiveElementData] = useState<ElementData | null>(null);
+  const [toolbarElements, setToolbarElements] = useState<ElementData[]>([]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   );
+
+  useEffect(() => {
+    const fetchToolbarElements = async () => {
+      try {
+        const response = await fetch('/api/element');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch elements: ${response.status}`);
+        }
+        const data = await response.json();
+        setToolbarElements(data.elements || []);
+      } catch (error) {
+        console.error("Error fetching toolbar elements: ", error);
+      }
+    };
+    fetchToolbarElements();
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id);
@@ -36,15 +54,6 @@ export default function DesignerPage() {
     }
   };
 
-  async function handleCombineElements(elementA, elementB) {
-    console.log('Combining elements:', elementA, elementB);
-    const response = await fetch('/api/combine', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ elementA, elementB }),
-    });
-    const result = await response.json();
-  }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over, delta } = event;
@@ -157,11 +166,18 @@ export default function DesignerPage() {
   };
 
   function handleDropElement(newElement: PlacedElementData, parentIds?: string[]) {
-    setPlacedElements(prevElements => {
-      const filtered = parentIds ? prevElements.filter(el => !parentIds.includes(el.instanceId)) : prevElements;
-      return [...filtered, newElement];
-    });
-  }
+  setPlacedElements(prevElements => {
+    const filtered = parentIds ? prevElements.filter(el => !parentIds.includes(el.instanceId)) : prevElements;
+    return [...filtered, newElement];
+  });
+  setToolbarElements(prevElements => {
+    const exists = prevElements.find(el => el._id === newElement._id);
+    if (!exists) {
+      return [...prevElements, { _id: newElement._id, name: newElement.name, iconUrl: newElement.iconUrl }];
+    }
+    return prevElements;
+  });
+}
 
   return (
     <DndContext
@@ -171,7 +187,7 @@ export default function DesignerPage() {
       onDragEnd={handleDragEnd}
     >
       <div className="flex flex-col h-screen">
-        <Toolbar />
+        <Toolbar elements={toolbarElements} />
         <div className="flex-grow p-4">
           <Canvas placedElements={placedElements} onDropElement={handleDropElement} />
         </div>

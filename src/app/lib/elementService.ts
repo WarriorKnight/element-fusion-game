@@ -10,11 +10,13 @@ export async function getElementByName(name: string): Promise<IElement | null> {
   return Element.findOne({ name });
 }
 
-export async function createElement(name: string, iconUrl: string): Promise<IElement> {
+export async function createElement(name: string, iconUrl: string, description: string,  combinedFrom: string[] = []): Promise<IElement> {
   await connectToDB();
   const newElement = new Element({
     name,
     iconUrl,
+    description,
+    combinedFrom,
   });
   return newElement.save();
 }

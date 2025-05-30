@@ -3,12 +3,14 @@ import mongoose, { Schema, Document } from 'mongoose';
 interface IElement extends Document {
   name: string;
   iconUrl: string;
+  description?: string;
   createdAt: Date;
   combinedFrom?: [mongoose.Types.ObjectId, mongoose.Types.ObjectId];
 }
 
 const elementSchema = new Schema<IElement>({
   name: { type: String, required: true, unique: true },
+  description: { type: String, default: '' },
   iconUrl: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   combinedFrom: [{ type: Schema.Types.ObjectId, ref: 'Element' }]

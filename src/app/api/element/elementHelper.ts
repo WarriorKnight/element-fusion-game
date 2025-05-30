@@ -4,28 +4,38 @@ import path from 'path';
 
 interface ElementDescription {
   name: string;
+  description: string;
 }
 
 export async function generateElementDetails(
   openai: OpenAI,
   name1: string,
   name2: string,
+  description1: string,
+  description2: string
 ): Promise<ElementDescription> {
-//  return {name: "Hot Steam"};
-  const gptResponseObject = await openai.responses.create({
-    model: 'gpt-4.1-nano-2025-04-14',
-    input: `You are given two elements to combine:
-Element 1: Name: "${name1}"
-Element 2: Name: "${name2}"
+const gptResponseObject = await openai.responses.create({
+  model: 'gpt-4.1-nano-2025-04-14',
+  input: `You are playing a game similar to Little Alchemy. You are given two elements, each with a name and a brief description. Your task is to invent a new element by thoughtfully fusing these two. The new element should make logical sense based on the properties and common associations of the input elements.
 
-Invent a new element by fusing these two.
-Provide:
-1. A name for the new combined element, this is for a game, so be creative, the game should be evolving.
+    Element 1:
+    Name: "${name1}"
+    Description: "${description1}"
 
-Return your response ONLY as a JSON object with two keys: "name" (string).
-Example: {"name": "Crystal Shard" }
-Do not include any other text, explanations, or markdown formatting around the JSON object.`,
-  });
+    Element 2:
+    Name: "${name2}"
+    Description: "${description2}"
+
+    Invent a new element by combining Element 1 and Element 2. Consider their physical properties, symbolic meanings, and common real-world or fantastical combinations. The new element's name should be a simple, concise, and commonly understood term, often one word. AVOID combining parts of the input element names (e.g., "Earth" + "Air" should NOT be "Aeriarth").
+
+    Provide:
+    1. A unique and fitting name for the new combined element.
+    2. A short description for the new element, explaining its nature or properties.
+
+    Return your response ONLY as a JSON object with two keys: "name" (string) and "description" (string).
+    Example: {"name": "Dust", "description": "Tiny particles of earth carried by the wind."}
+    Do not include any other text, explanations, or markdown formatting around the JSON object.`,
+});
 
   if (!gptResponseObject || typeof gptResponseObject.output_text !== 'string') {
     console.error('OpenAI text generation response was missing output_text or it was not a string:', gptResponseObject);
@@ -48,7 +58,7 @@ export async function generateImageWithTool(
   parentName1: string,
   parentName2: string,
 ): Promise<string> {
-  // return fs.readFile('./debug/base64.txt', 'utf-8')
+  return fs.readFile('./src/debug/base64.txt', 'utf-8')
   const imageGenToolResponse = await openai.responses.create({
     model: 'gpt-4.1-mini',
     input: imageName + ", that happend when combining" + parentName1 + " and " + parentName2 + "glossy 3d icon rendered in a pixelated style with a frosted glass material, giving it a translucent and slightly blurred appearance. The icon features sharp, defined edges and a vibrant color scheme, standing out against a transparent background for seamless integration into various designs. This detailed, high-quality 3D icon showcases a unique aesthetic, combining smooth, shiny surfaces with a retro pixelated look. This design achieves a unique blend of textures and styles. The 3D model shows a detailed design with subtle lighting and highlights that emphasize the glossy finish, contrasting with the pixelated surface to create a visually appealing frosted glass effect.",

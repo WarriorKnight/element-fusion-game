@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-
-import { generateElementDetails, generateImageWithTool } from './elementHelper';
+import { generateElementDetails, generateImage } from './elementHelper';
 import { uploadImageToS3 } from '@/app/lib/s3Service';
 import {
   getAllElements,
@@ -12,10 +11,10 @@ import {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function helloWorldGET() {
-  return NextResponse.json({ message: 'Hello, world!' }, { status: 200 });
-}
-
+/**
+ * GET endpoint: If a "name" query parameter is provided, return that element.
+ * Otherwise, return only allowed elements.
+ */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -27,12 +26,12 @@ export async function GET(request: Request) {
         return NextResponse.json({ message: 'Element not found' }, { status: 404 });
       }
       return NextResponse.json({ element }, { status: 200 });
-    } else {
-      const allElements = await getAllElements();
-      const allowedElements = ["Water", "Fire", "Earth", "Air"];
-      const filteredElements = allElements.filter(el => allowedElements.includes(el.name));
-      return NextResponse.json({ elements: filteredElements }, { status: 200 });
     }
+
+    const allElements = await getAllElements();
+    const allowedElements = ["Water", "Fire", "Earth", "Air"];
+    const filteredElements = allElements.filter(el => allowedElements.includes(el.name));
+    return NextResponse.json({ elements: filteredElements }, { status: 200 });
   } catch (error) {
     console.error('[ELEMENT_GET_ERROR]', error);
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -40,23 +39,32 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST endpoint: Attempts to combine two elements.
+ * 
+ * Steps:
+ * 1. Validate input.
+ * 2. Check if a combination of the given parent elements already exists.
+ * 3. Use OpenAI to generate new element details and image.
+ * 4. Upload image to S3 and create the new element with combinedFrom field.
+ */
 export async function POST(request: Request) {
   const { name1, name2 } = await request.json();
+
   if (!name1 || !name2) {
     return NextResponse.json({ message: 'Missing element details for combination.' }, { status: 400 });
   }
 
+  // Retrieve parent elements by name.
   const element1 = await getElementByName(name1);
   const element2 = await getElementByName(name2);
 
-  console.log("Currently processing element combination:", { name1, name2 });
+  //console.log("Processing element combination:", { name1, name2 });
 
+  // Check if the combination already exists.
   if (element1 && element2) {
     const allElements = await getAllElements();
     for (const el of allElements) {
-      console.log('combinedFrom:', el.combinedFrom);
-      console.log('element1:', element1._id.toString());
-      console.log('element2:', element2._id.toString());
       if (el.combinedFrom && Array.isArray(el.combinedFrom)) {
         const parentIds = [element1._id.toString(), element2._id.toString()].sort();
         const elParentIds = el.combinedFrom.map(id => id.toString()).sort();
@@ -71,42 +79,39 @@ export async function POST(request: Request) {
     }
   }
 
- //  const mockElement = {
- //  name: "New Element", // Use combinedName as the new element's name
- //  iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/Hot_Steam-e38776be-4303-486d-bf09-fcc242444704.png',
- //  createdAt: new Date().toISOString(),
- //  updatedAt: new Date().toISOString(),
- //  _id: 'mocked_id'
- //};
- //return NextResponse.json({
- //  message: 'Mock element created successfully',
- //  element: mockElement,
- //}, { status: 201 });
-
-  console.log(`No existing element found for combination of "${name1}" and "${name2}". Proceeding to create a new element.`);
+  console.log(`No existing element for combination "${name1}" and "${name2}". Proceeding to create a new element.`);
   try {
-    const { name: newElementName, description: newElementDescription } = await generateElementDetails(openai, name1, name2, element1.description, element2.description);
+    // Generate new element details with OpenAI.
+    const { name: newElementName, description: newElementDescription } =
+      await generateElementDetails(openai, name1, name2, element1.description, element2.description);
 
-     const existingElement = await getElementByName(newElementName);
+    // If the generated element already exists, return it.
+    const existingElement = await getElementByName(newElementName);
+    if (existingElement) {
+      console.log(`Element "${newElementName}" already exists. Returning existing element.`);
+      return NextResponse.json({
+        message: 'Element already exists',
+        element: existingElement,
+      }, { status: 200 });
+    }
 
-     if (existingElement) {
-       console.log(`Element "${newElementName}" already exists. Returning existing element.`);
-       return NextResponse.json({
-         message: 'Element already exists',
-         element: existingElement,
-       }, { status: 200 });
-     }
-
-    const imageBase64 = await generateImageWithTool(openai, newElementName, name1, name2);
+    // Generate image for new element.
+    const imageBase64 = await generateImage(openai, newElementName, newElementDescription);
     if (!imageBase64) {
       return NextResponse.json({ message: 'Failed to generate image.' }, { status: 500 });
     }
 
+    // Upload image to S3.
     const imageUrl = await uploadImageToS3(imageBase64, newElementName);
     if (!imageUrl) {
       return NextResponse.json({ message: 'Failed to upload image to S3.' }, { status: 500 });
     }
-    const newElement = await createElement(newElementName, imageUrl, newElementDescription, [element1._id, element2._id]);
+    
+    // Create new element with combinedFrom field.
+    const newElement = await createElement(newElementName, imageUrl, newElementDescription, [
+      element1._id,
+      element2._id,
+    ]);
     console.log(`Created new element "${newElement.name}" with ID "${newElement._id}".`);
     return NextResponse.json({
       message: 'Element created successfully',
@@ -116,22 +121,24 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('[ELEMENT_POST_ERROR]', error);
     if (error.code === 11000) {
-        return NextResponse.json({
-            message: `Element with name '${error.keyValue?.name || 'unknown'}' already exists.`,
-            error: error.message
-        }, { status: 409 });
+      return NextResponse.json({
+        message: `Element with name '${error.keyValue?.name || 'unknown'}' already exists.`,
+        error: error.message
+      }, { status: 409 });
     }
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     return NextResponse.json({ message: 'Failed to create element.', error: errorMessage }, { status: 500 });
   }
-
-
 }
 
+/**
+ * DELETE endpoint: Deletes all elements and resets the default ones.
+ *
+ * Requires a specific confirmation query parameter, which is stricter in production.
+ */
 export async function DELETE(request: Request) {
   const url = new URL(request.url);
   const confirmDelete = url.searchParams.get("confirm");
-
   const isProduction = process.env.NODE_ENV === 'production';
   const devConfirm = !isProduction && confirmDelete === 'yes';
   const prodConfirm = isProduction && confirmDelete === 'ERASE_ALL_MY_DATA_REALLY';
@@ -148,15 +155,31 @@ export async function DELETE(request: Request) {
     const deletionResult = await deleteAllElements();
     console.log(`Deleted ${deletionResult.deletedCount || 0} elements.`);
 
+    // Reset default elements. 
     const defaultElementsData = [
-      { name: 'Fire', iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/fire.png', description: 'A blazing element that brings warmth and light.' },
-      { name: 'Water', iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/water.png', description: 'A fluid element that quenches thirst and nourishes life.' },
-      { name: 'Earth', iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/earth.png', description: 'A solid element that provides stability and strength.' },
-      { name: 'Air', iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/wind.png', description: 'An invisible element that carries scents and sounds.' },
+      {
+        name: 'Fire',
+        iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/fire.png',
+        description: 'A blazing element that brings warmth and light.'
+      },
+      {
+        name: 'Water',
+        iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/water.png',
+        description: 'A fluid element that quenches thirst and nourishes life.'
+      },
+      {
+        name: 'Earth',
+        iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/earth.png',
+        description: 'A solid element that provides stability and strength.'
+      },
+      {
+        name: 'Air',
+        iconUrl: 'https://fusiongame.s3.eu-north-1.amazonaws.com/elements/wind.png',
+        description: 'An invisible element that carries scents and sounds.'
+      },
     ];
 
     const createdDefaultElements = [];
-
     for (const elData of defaultElementsData) {
       try {
         const newDefaultElement = await createElement(elData.name, elData.iconUrl, elData.description, []);

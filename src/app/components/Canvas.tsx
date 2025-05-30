@@ -93,7 +93,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`w-full h-[600px] border rounded-4xl relative overflow-hidden transition-colors duration-200
+      className={`w-full h-full border rounded-4xl relative overflow-hidden transition-colors duration-200
          ${isOver ? 'border-green-300 bg-black' : 'border-gray-200'}`}
       style={{ position: 'relative' }}
     >

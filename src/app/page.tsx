@@ -17,6 +17,8 @@ import {
 import Toolbar, { ElementData } from './components/Toolbar';
 import Canvas, { PlacedElementData } from './components/Canvas';
 import Element from './components/Element';
+import "./style.css";
+
 
 export default function DesignerPage() {
   const [placedElements, setPlacedElements] = useState<PlacedElementData[]>([]);

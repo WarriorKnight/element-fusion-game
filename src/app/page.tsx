@@ -133,29 +133,6 @@ export default function DesignerPage() {
     const activeData = active.data.current;
     const overData = over.data.current;
 
-    if (
-      over.id !== active.id &&
-      typeof over.id === 'string' &&
-      over.id.startsWith('canvas-el-') &&
-      typeof active.id === 'string' &&
-      active.id.startsWith('canvas-el-') &&
-      activeData?.type === 'element' &&
-      overData?.type === 'element'
-    ) {
-      const elementA = placedElements.find((el) => el.instanceId === active.id);
-      const elementB = placedElements.find((el) => el.instanceId === over.id);
-
-      if (elementA && elementB) {
-        handleCombineElements(elementA, elementB);
-        return;
-      } else {
-        console.error(
-          'Combine error: Draggable or droppable element data not found in placedElements state for an element-on-element drop.',
-          { activeId: active.id, overId: over.id, elementA_found: !!elementA, elementB_found: !!elementB }
-        );
-        return;
-      }
-    }
 
     if (overData?.type === 'toolbar' && activeData?.type === 'element' && !active.id.toString().startsWith('toolbar-')) {
       setPlacedElements((prevElements) =>
@@ -284,7 +261,6 @@ export default function DesignerPage() {
               <Canvas 
                 placedElements={placedElements} 
                 onDropElement={handleDropElement} 
-                refreshGraphData={refreshGraphData}
               />
             </div>
           </div>

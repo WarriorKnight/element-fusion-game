@@ -9,8 +9,6 @@ import {
   deleteAllElements
 } from '@/app/lib/elementService';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 /**
  * GET endpoint: If a "name" query parameter is provided, return that element.
  * Otherwise, return only allowed elements.
@@ -54,6 +52,11 @@ export async function POST(request: Request) {
   if (!name1 || !name2) {
     return NextResponse.json({ message: 'Missing element details for combination.' }, { status: 400 });
   }
+
+  // Initialize OpenAI inside the function where it's used
+  const openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY || '' // Provide fallback empty string
+  });
 
   // Retrieve parent elements by name.
   const element1 = await getElementByName(name1) as { _id: { toString(): string }, name: string, description: string, combinedFrom?: string[] };

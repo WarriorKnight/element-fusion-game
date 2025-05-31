@@ -52,22 +52,25 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
   });
 
   const elementWidth = 100, elementHeight = 100;
-  const overlapSet = new Set<string>();
-  for (let i = 0; i < placedElements.length; i++) {
-    const el1 = placedElements[i];
-    for (let j = i + 1; j < placedElements.length; j++) {
-      const el2 = placedElements[j];
-      if (
-        el1.x < el2.x + elementWidth &&
-        el1.x + elementWidth > el2.x &&
-        el1.y < el2.y + elementHeight &&
-        el1.y + elementHeight > el2.y
-      ) {
-        overlapSet.add(el1.instanceId);
-        overlapSet.add(el2.instanceId);
+  const overlapSet = React.useMemo(() => {
+    const set = new Set<string>();
+    for (let i = 0; i < placedElements.length; i++) {
+      const el1 = placedElements[i];
+      for (let j = i + 1; j < placedElements.length; j++) {
+        const el2 = placedElements[j];
+        if (
+          el1.x < el2.x + elementWidth &&
+          el1.x + elementWidth > el2.x &&
+          el1.y < el2.y + elementHeight &&
+          el1.y + elementHeight > el2.y
+        ) {
+          set.add(el1.instanceId);
+          set.add(el2.instanceId);
+        }
       }
     }
-  }
+    return set;
+  }, [placedElements]);
 
   useEffect(() => {
     if (overlapSet.size > 0 && !combinationTriggeredRef.current) {

@@ -61,8 +61,8 @@ async function connectToDB() {
   try {
     await mongoose.connect(MONGODB_URI as string, {});
     console.log('[DB] Successfully connected to MongoDB.');
-  } catch (e) {
-    throw new Error('Failed to connect to MongoDB.', e);
+  } catch {
+    throw new Error('Failed to connect to MongoDB.');
   }
   console.log('[DB] connectToDB function finished.');
 }

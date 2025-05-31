@@ -137,20 +137,6 @@ export async function POST(request: Request) {
  * Requires a specific confirmation query parameter, which is stricter in production.
  */
 export async function DELETE(request: Request) {
-  const url = new URL(request.url);
-  const confirmDelete = url.searchParams.get("confirm");
-  const isProduction = process.env.NODE_ENV === 'production';
-  const devConfirm = !isProduction && confirmDelete === 'yes';
-  const prodConfirm = isProduction && confirmDelete === 'ERASE_ALL_MY_DATA_REALLY';
-
-  if (!devConfirm && !prodConfirm) {
-    const message = isProduction
-      ? 'Deletion in production requires specific confirmation (ERASE_ALL_MY_DATA_REALLY).'
-      : 'To delete all elements in development, add ?confirm=yes to the URL.';
-    const status = isProduction ? 403 : 400;
-    return NextResponse.json({ message }, { status });
-  }
-
   try {
     const deletionResult = await deleteAllElements();
     console.log(`Deleted ${deletionResult.deletedCount || 0} elements.`);

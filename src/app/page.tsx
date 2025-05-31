@@ -26,6 +26,21 @@ export default function DesignerPage() {
   const [activeElementData, setActiveElementData] = useState<ElementData | null>(null);
   const [toolbarElements, setToolbarElements] = useState<ElementData[]>([]);
   const [graphData, setGraphData] = useState<{ nodes: { id: string, name: string, imgUrl?: string }[]; links: { source: string, target: string }[] } | null>(null);
+  const [showGraph, setShowGraph] = useState(false);
+
+  // Function to refresh graph data
+  const refreshGraphData = async () => {
+    try {
+      const graphResponse = await fetch('/api/graph');
+      if (!graphResponse.ok) {
+        throw new Error('Failed to fetch graph data');
+      }
+      const data = await graphResponse.json();
+      setGraphData(data);
+    } catch (error) {
+      console.error("Error refreshing graph data:", error);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -46,12 +61,7 @@ export default function DesignerPage() {
         setToolbarElements(elementsData.elements || []);
         
         // Fetch graph data
-        const graphResponse = await fetch('/api/graph');
-        if (!graphResponse.ok) {
-          throw new Error('Failed to fetch graph data');
-        }
-        const graphData = await graphResponse.json();
-        setGraphData(graphData);
+        await refreshGraphData();
       } catch (error) {
         console.error("Error fetching data: ", error);
       }
@@ -59,6 +69,15 @@ export default function DesignerPage() {
     
     fetchData();
   }, []);
+
+  // Toggle graph modal
+  const toggleGraph = () => {
+    setShowGraph(!showGraph);
+    // Refresh graph data when opening the modal
+    if (!showGraph) {
+      refreshGraphData();
+    }
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id);
@@ -200,24 +219,67 @@ export default function DesignerPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex flex-col h-screen">
-          <Toolbar elements={toolbarElements} />
-          <div className="flex flex-row w-full">
-            <div className="flex-1 p-4">
-              <Canvas placedElements={placedElements} onDropElement={handleDropElement} />
-            </div>
-            
-            {/* Graph beside canvas - always visible */}
-            <div className="w-1/2 p-4 m-4 border rounded-4xl border-gray-300">
-              {graphData ? (
-                <GraphComponent nodes={graphData.nodes} links={graphData.links} />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">Loading graph data...</p>
-                </div>
-              )}
+          <div className="bg-blue-600 p-2 text-white">
+            <div className="container mx-auto flex justify-between items-center">
+              <h1 className="text-xl font-bold">Element Fusion Game</h1>
+              <button 
+                onClick={toggleGraph} 
+                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors"
+              >
+                {showGraph ? "Hide Graph" : "Show Graph"}
+              </button>
             </div>
           </div>
+          
+          <Toolbar elements={toolbarElements} />
+          
+          <div className="flex-1 p-4">
+            <Canvas 
+              placedElements={placedElements} 
+              onDropElement={handleDropElement} 
+              refreshGraphData={refreshGraphData}
+            />
+          </div>
         </div>
+        
+        {/* Graph Modal */}
+        {showGraph && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            {/* Modal Backdrop */}
+            <div 
+              className="fixed inset-0 backdrop-blur-sm bg-black/50" 
+              onClick={toggleGraph}
+            ></div>
+            
+            {/* Modal Content */}
+            <div className="relative rounded-lg shadow-xl max-w-5xl w-[95%] h-[90%] max-h-[90vh] overflow-hidden z-50 border" style={{ background: "rgb(1, 8, 19)" }}>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Element Relationship Graph</h2>
+              <button 
+                onClick={toggleGraph}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+              </div>
+              
+              <div className="p-6 h-[calc(100%-4rem)] overflow-auto">
+              {graphData ? (
+                <div className="w-full h-full">
+                <GraphComponent nodes={graphData.nodes} links={graphData.links} />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500">Loading graph data...</p>
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <DragOverlay dropAnimation={null}>
           {activeId && activeElementData ? (
             <Element

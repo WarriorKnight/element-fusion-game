@@ -20,11 +20,6 @@ const Element = mongoose.models.Element || mongoose.model<IElement>('Element', e
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
-  throw new Error(
-    'Please define the MONGODB_URI environment variable inside .env.local or provide a default'
-  );
-}
 
 
 async function connectToDB() {

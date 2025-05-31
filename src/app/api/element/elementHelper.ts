@@ -1,12 +1,32 @@
-import OpenAI from 'openai';
-import fs from 'fs/promises';
-import path from 'path';
+/**
+ * This module provides helper functions for generating element details and images for the Element Fusion Game.
+ * It leverages OpenAI models to generate a new element by fusing two given elements, and to create a symbolic 3D voxel icon image.
+ */
 
+import OpenAI from 'openai';
+
+/**
+ * Interface representing the description of an element.
+ */
 export interface ElementDescription {
   name: string;
   description: string;
 }
 
+/**
+ * Generates details for a new element by fusing two existing elements.
+ *
+ * The function builds a prompt that describes a fusion process similar to Little Alchemy and sends the prompt
+ * to an OpenAI model. The generated response (expected to be valid JSON) is parsed into an ElementDescription.
+ *
+ * @param openai - An instance of the OpenAI API client.
+ * @param name1 - The name of the first element.
+ * @param name2 - The name of the second element.
+ * @param description1 - A brief description of the first element.
+ * @param description2 - A brief description of the second element.
+ * @returns A promise that resolves to an ElementDescription containing a new element's name and description.
+ * @throws Will throw an error if the OpenAI response is invalid or if the response cannot be parsed as JSON.
+ */
 export async function generateElementDetails(
   openai: OpenAI,
   name1: string,
@@ -17,7 +37,7 @@ export async function generateElementDetails(
   const prompt = `
 You are playing a game similar to Little Alchemy. You are given two elements, each with a name and a brief description.
 Your task is to invent a new element by thoughtfully fusing these two. The new element should make logical sense based on the properties and
-common associations of the input elements.
+common associations of the input elements. Try to generate one of those categories. Earth resources, Human Inventions, Chemical Compounds, Celestial Phenomena, Mythical Elements, Technological Inventions 
 
 Element 1:
 Name: "${name1}"
@@ -54,7 +74,18 @@ Example: {"name": "Mud", "description": "A thick, dark brown, wet, blocky blob o
   }
 }
 
-
+/**
+ * Generates a symbolic 3D voxel icon image for a given element.
+ *
+ * The function constructs an image prompt based on the element's name and description, then calls the OpenAI API
+ * to generate an image using a dedicated image generation tool. The response is parsed to retrieve the generated image data.
+ *
+ * @param openai - An instance of the OpenAI API client.
+ * @param name - The name of the element.
+ * @param description - The element's description used to inspire the image.
+ * @returns A promise that resolves to a string containing image data (e.g., a base64 encoded image).
+ * @throws Will throw an error if the image generation output is invalid or if the image data cannot be retrieved.
+ */
 export async function generateImage(
   openai: OpenAI,
   name: string,
@@ -75,26 +106,10 @@ export async function generateImage(
     ],
   });
   
-  // Find the output that has the image generation result.
   const imageOutput = imageGenResponse.output.find(out => out.type === 'image_generation_call');
   if (!imageOutput || typeof imageOutput.result !== 'string') {
     console.error('Invalid image generation output:', imageGenResponse.output);
     throw new Error('Failed to retrieve image data from the image generation tool.');
   }
   return imageOutput.result;
-}
-
-
-export async function saveImageToFile(
-  imageBase64: string,
-  elementName: string
-): Promise<string> {
-  const sanitizedElementName = elementName.toLowerCase().replace(/\s+/g, '_');
-  const imageName = `${sanitizedElementName}_${Date.now()}.png`;
-  const imagesDir = path.join(process.cwd(), 'public', 'generated_images');
-  const imagePath = path.join(imagesDir, imageName);
-
-  await fs.mkdir(imagesDir, { recursive: true });
-  await fs.writeFile(imagePath, Buffer.from(imageBase64, 'base64'));
-  return `/generated_images/${imageName}`;
 }

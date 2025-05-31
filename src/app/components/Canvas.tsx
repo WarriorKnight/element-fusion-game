@@ -5,18 +5,35 @@ import { useDroppable } from '@dnd-kit/core';
 import Element from './Element';
 import { ElementData } from './Toolbar';
 
+/**
+ * Interface extending ElementData to include properties for an element
+ * that is placed on the canvas.
+ */
 export interface PlacedElementData extends ElementData {
   instanceId: string;
   x: number;
   y: number;
 }
 
+/**
+ * Props for the Canvas component.
+ * - placedElements: An array of elements currently placed on the canvas.
+ * - onDropElement: A callback function invoked when a new element (e.g., a fused element)
+ *   is dropped onto the canvas.
+ */
 interface CanvasProps {
   placedElements: PlacedElementData[];
   onDropElement: (element: PlacedElementData, parentIds?: string[]) => void;
 }
 
-// New component for cycling loading text
+/**
+ * LoadingText component displays animated loading text.
+ *
+ * The text cycles through the sequence "Loading.", "Loading..", and "Loading..."
+ * every 500 milliseconds.
+ *
+ * @returns {JSX.Element} The animated loading text.
+ */
 function LoadingText() {
   const [text, setText] = useState('Loading.');
   useEffect(() => {
@@ -34,15 +51,31 @@ function LoadingText() {
   return <div className="loader">{text}</div>;
 }
 
+/**
+ * Canvas component renders the droppable area where elements are placed.
+ *
+ * It handles rendering of individual elements, detecting collisions between them,
+ * and triggering an API call to combine overlapping elements.
+ *
+ * When two elements overlap, a POST request is sent to create a combined element.
+ * If successful, the new element is added via the onDropElement callback.
+ *
+ * @param {CanvasProps} props - The props for the Canvas component.
+ * @returns {JSX.Element} The rendered canvas with placed elements.
+ */
 export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
+  // Maintain a reference to the latest onDropElement callback.
   const onDropElementRef = useRef(onDropElement);
   useEffect(() => {
     onDropElementRef.current = onDropElement;
   }, [onDropElement]);
 
+  // State flag for showing the loading indicator during combination.
   const [isLoading, setIsLoading] = useState(false);
+  // Ref to prevent multiple combination triggers for the same collision event.
   const combinationTriggeredRef = useRef(false);
 
+  // Set up the droppable area for the canvas using dnd-kit.
   const { setNodeRef, isOver } = useDroppable({
     id: 'canvas-droppable-area',
     data: {
@@ -51,7 +84,13 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
     },
   });
 
+  // Fixed dimensions for element boundaries used in collision detection.
   const elementWidth = 100, elementHeight = 100;
+
+  /**
+   * Calculate overlapping elements by iterating through the placedElements list.
+   * If two elements' positions intersect based on their widths and heights, add their instanceIds to a Set.
+   */
   const overlapSet = React.useMemo(() => {
     const set = new Set<string>();
     for (let i = 0; i < placedElements.length; i++) {
@@ -72,6 +111,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
     return set;
   }, [placedElements]);
 
+  // Effect to detect collisions and trigger element combination.
   useEffect(() => {
     if (overlapSet.size > 0 && !combinationTriggeredRef.current) {
       const collided = placedElements.filter(el => overlapSet.has(el.instanceId));
@@ -96,7 +136,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
                 x: (x1 + x2) / 2,
                 y: (y1 + y2) / 2
               };
-              // Pass parent IDs (from collided elements instanceIds)
+              // Invoke callback with the new combined element and parent IDs.
               onDropElementRef.current(combinedElement, [collided[0].instanceId, collided[1].instanceId]);
             }
           } catch (error) {

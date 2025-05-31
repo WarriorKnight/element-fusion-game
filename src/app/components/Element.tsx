@@ -44,7 +44,7 @@ export default function Element({ id, data, isOverlay, style: customStyle }: Dra
           src={data.iconUrl}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-contain pointer-events-none blur-[25px]"
+          className="absolute inset-0 w-full h-full object-contain duration-200 blur-[15px] opacity-60 hover:opacity-100 hover:blur-[20px]"
           style={{ zIndex: 0 }}
           width={1024}
           height={1024}
@@ -59,7 +59,7 @@ export default function Element({ id, data, isOverlay, style: customStyle }: Dra
           height={1024}
         />
       </div>
-      <span className="text-xs text-center truncate w-full pointer-events-none">{data.name}</span>
+      <span className="text-m text-center truncate w-full pointer-events-none">{data.name}</span>
     </div>
   );
 }

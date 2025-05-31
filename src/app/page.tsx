@@ -19,6 +19,7 @@ import Canvas, { PlacedElementData } from './components/Canvas';
 import Element from './components/Element';
 import GraphComponent from './components/Graph';
 import "./style.css";
+import { handleDragEndLogic } from './dragHandlers'; 
 
 
 export default function DesignerPage() {
@@ -31,7 +32,6 @@ export default function DesignerPage() {
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Function to refresh graph data
   const refreshGraphData = async () => {
     try {
       const graphResponse = await fetch('/api/graph');
@@ -45,7 +45,6 @@ export default function DesignerPage() {
     }
   };
   
-  // Function to handle reset request
   const handleReset = async () => {
     try {
       setIsResetting(true);
@@ -57,20 +56,15 @@ export default function DesignerPage() {
         throw new Error('Failed to reset progress');
       }
       
-      // Clear placed elements
       setPlacedElements([]);
       
-      // Refresh toolbar elements - keep only the basic ones
       const elementsResponse = await fetch('/api/element');
       if (elementsResponse.ok) {
         const elementsData = await elementsResponse.json();
         setToolbarElements(elementsData.elements || []);
       }
-      
-      // Refresh graph data
       await refreshGraphData();
-      
-      // Close confirmation dialog
+
       setShowResetConfirmation(false);
     } catch (error) {
       console.error("Error resetting progress:", error);
@@ -88,7 +82,6 @@ export default function DesignerPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch toolbar elements
         const elementsResponse = await fetch('/api/element');
         if (!elementsResponse.ok) {
           const errorData = await elementsResponse.json();
@@ -97,7 +90,6 @@ export default function DesignerPage() {
         const elementsData = await elementsResponse.json();
         setToolbarElements(elementsData.elements || []);
         
-        // Fetch graph data
         await refreshGraphData();
       } catch (error) {
         console.error("Error fetching data: ", error);
@@ -107,10 +99,8 @@ export default function DesignerPage() {
     fetchData();
   }, []);
 
-  // Toggle graph modal
   const toggleGraph = () => {
     setShowGraph(!showGraph);
-    // Refresh graph data when opening the modal
     if (!showGraph) {
       refreshGraphData();
     }
@@ -124,91 +114,13 @@ export default function DesignerPage() {
   };
 
   async function handleDragEnd(event: DragEndEvent) {
-    const { active, over, delta } = event;
-    setActiveId(null);
-    setActiveElementData(null);
-
-    if (!over) return;
-
-    const activeData = active.data.current;
-    const overData = over.data.current;
-
-
-    if (overData?.type === 'toolbar' && activeData?.type === 'element' && !active.id.toString().startsWith('toolbar-')) {
-      setPlacedElements((prevElements) =>
-        prevElements.filter((el) => el.instanceId !== active.id)
-      );
-      return;
-    }
-
-    if (activeData?.elementData && overData?.type === 'canvas') {
-      const element = activeData.elementData as ElementData;
-      const isToolbarItem = active.id.toString().startsWith('toolbar-');
-
-      if (isToolbarItem) {
-        const canvasViewportRect = over.rect;
-
-        let dropX = 0;
-        let dropY = 0;
-
-        if (canvasViewportRect && event.activatorEvent) {
-          let initialPointerClientX = 0;
-          let initialPointerClientY = 0;
-
-          if (event.activatorEvent instanceof MouseEvent) {
-            initialPointerClientX = event.activatorEvent.clientX;
-            initialPointerClientY = event.activatorEvent.clientY;
-          } else if (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0) {
-            initialPointerClientX = event.activatorEvent.touches[0].clientX;
-            initialPointerClientY = event.activatorEvent.touches[0].clientY;
-          } else {
-            const activeTranslatedRect = active.rect.current.translated;
-            if (activeTranslatedRect) {
-              dropX = activeTranslatedRect.left - canvasViewportRect.left;
-              dropY = activeTranslatedRect.top - canvasViewportRect.top;
-            }
-          }
-
-          const finalPointerClientX = initialPointerClientX + delta.x;
-          const finalPointerClientY = initialPointerClientY + delta.y;
-
-          dropX = finalPointerClientX - canvasViewportRect.left;
-          dropY = finalPointerClientY - canvasViewportRect.top;
-
-          const elementWidth = active.rect.current.initial?.width ?? 96;
-          const elementHeight = active.rect.current.initial?.height ?? 76;
-          dropX -= elementWidth / 2;
-          dropY -= elementHeight / 2;
-
-        } else if (canvasViewportRect) {
-          const activeTranslatedRect = active.rect.current.translated;
-          if (activeTranslatedRect) {
-            dropX = activeTranslatedRect.left - canvasViewportRect.left;
-            dropY = activeTranslatedRect.top - canvasViewportRect.top;
-          } else {
-            dropX = canvasViewportRect.width / 2 - (active.rect.current.initial?.width ?? 96) / 2;
-            dropY = canvasViewportRect.height / 2 - (active.rect.current.initial?.height ?? 76) / 2;
-          }
-        }
-
-        const newElement: PlacedElementData = {
-          ...element,
-          instanceId: `canvas-el-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          x: Math.max(0, dropX),
-          y: Math.max(0, dropY),
-        };
-        setPlacedElements((prev) => [...prev, newElement]);
-      } else {
-        setPlacedElements((prev) =>
-          prev.map((el) =>
-            el.instanceId === active.id
-              ? { ...el, x: Math.max(0, el.x + delta.x), y: Math.max(0, el.y + delta.y) }
-              : el
-          )
-        );
-      }
-    }
-  };
+    await handleDragEndLogic({
+      event,
+      setActiveId,
+      setActiveElementData,
+      setPlacedElements,
+    });
+  }
 
   function handleDropElement(newElement: PlacedElementData, parentIds?: string[]) {
     setPlacedElements(prevElements => {

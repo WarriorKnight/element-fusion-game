@@ -5,14 +5,6 @@ FROM node:22-slim AS base
 ARG PORT=3000
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# Add these lines right before CMD
-# They provide fallback values to prevent crashes
-ENV MONGODB_URI=${MONGODB_URI:-"mongodb://placeholder-will-fail-gracefully"}
-ENV OPENAI_API_KEY=${OPENAI_API_KEY:-"placeholder-key"}
-ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-"placeholder-key"}
-ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-"placeholder-key"}
-ENV AWS_REGION=${AWS_REGION:-"eu-north-1"}
-ENV S3_BUCKET_NAME=${S3_BUCKET_NAME:-"fusiongame"}
 
 WORKDIR /app
 
@@ -38,7 +30,7 @@ RUN npm run build
 FROM base AS run
 
 ENV NODE_ENV=production
-ENV PORT=$PORT
+ENV PORT=3000
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

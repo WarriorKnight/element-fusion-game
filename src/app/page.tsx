@@ -17,36 +17,47 @@ import {
 import Toolbar, { ElementData } from './components/Toolbar';
 import Canvas, { PlacedElementData } from './components/Canvas';
 import Element from './components/Element';
+import GraphComponent from './components/Graph';
 import "./style.css";
-
 
 export default function DesignerPage() {
   const [placedElements, setPlacedElements] = useState<PlacedElementData[]>([]);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [activeElementData, setActiveElementData] = useState<ElementData | null>(null);
   const [toolbarElements, setToolbarElements] = useState<ElementData[]>([]);
+  const [graphData, setGraphData] = useState<{ nodes: { id: string, name: string, imgUrl?: string }[]; links: { source: string, target: string }[] } | null>(null);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   );
 
   useEffect(() => {
-    const fetchToolbarElements = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/element');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch elements: ${response.status}`);
+        // Fetch toolbar elements
+        const elementsResponse = await fetch('/api/element');
+        if (!elementsResponse.ok) {
+          const errorData = await elementsResponse.json();
+          throw new Error(errorData.message || `Failed to fetch elements: ${elementsResponse.status}`);
         }
-        const data = await response.json();
-        setToolbarElements(data.elements || []);
+        const elementsData = await elementsResponse.json();
+        setToolbarElements(elementsData.elements || []);
+        
+        // Fetch graph data
+        const graphResponse = await fetch('/api/graph');
+        if (!graphResponse.ok) {
+          throw new Error('Failed to fetch graph data');
+        }
+        const graphData = await graphResponse.json();
+        setGraphData(graphData);
       } catch (error) {
-        console.error("Error fetching toolbar elements: ", error);
+        console.error("Error fetching data: ", error);
       }
     };
-    fetchToolbarElements();
+    
+    fetchData();
   }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -55,7 +66,6 @@ export default function DesignerPage() {
       setActiveElementData(event.active.data.current.elementData as ElementData);
     }
   };
-
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over, delta } = event;
@@ -168,41 +178,56 @@ export default function DesignerPage() {
   };
 
   function handleDropElement(newElement: PlacedElementData, parentIds?: string[]) {
-  setPlacedElements(prevElements => {
-    const filtered = parentIds ? prevElements.filter(el => !parentIds.includes(el.instanceId)) : prevElements;
-    return [...filtered, newElement];
-  });
-  setToolbarElements(prevElements => {
-    const exists = prevElements.find(el => el._id === newElement._id);
-    if (!exists) {
-      return [...prevElements, { _id: newElement._id, name: newElement.name, iconUrl: newElement.iconUrl }];
-    }
-    return prevElements;
-  });
-}
+    setPlacedElements(prevElements => {
+      const filtered = parentIds ? prevElements.filter(el => !parentIds.includes(el.instanceId)) : prevElements;
+      return [...filtered, newElement];
+    });
+    setToolbarElements(prevElements => {
+      const exists = prevElements.find(el => el._id === newElement._id);
+      if (!exists) {
+        return [...prevElements, { _id: newElement._id, name: newElement.name, iconUrl: newElement.iconUrl }];
+      }
+      return prevElements;
+    });
+  }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex flex-col h-screen">
-        <Toolbar elements={toolbarElements} />
-        <div className="flex-grow p-4">
-          <Canvas placedElements={placedElements} onDropElement={handleDropElement} />
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-col h-screen">
+          <Toolbar elements={toolbarElements} />
+          <div className="flex flex-row w-full">
+            <div className="flex-1 p-4">
+              <Canvas placedElements={placedElements} onDropElement={handleDropElement} />
+            </div>
+            
+            {/* Graph beside canvas - always visible */}
+            <div className="w-1/2 p-4 m-4 border rounded-4xl border-gray-300">
+              {graphData ? (
+                <GraphComponent nodes={graphData.nodes} links={graphData.links} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500">Loading graph data...</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      <DragOverlay dropAnimation={null}>
-        {activeId && activeElementData ? (
-          <Element
-            id={`${activeId}-overlay`}
-            data={activeElementData}
-            isOverlay
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay dropAnimation={null}>
+          {activeId && activeElementData ? (
+            <Element
+              id={`${activeId}-overlay`}
+              data={activeElementData}
+              isOverlay
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </>
   );
 }

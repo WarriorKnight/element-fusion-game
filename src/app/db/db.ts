@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-interface IElement extends Document {
+export interface IElement extends Document {
   name: string;
   iconUrl: string;
   description?: string;
@@ -33,7 +33,7 @@ async function connectToDB() {
   }
 
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(MONGODB_URI as string);
     console.log('Successfully connected to MongoDB.');
   } catch (e) {
     console.error('Error connecting to MongoDB:', e);

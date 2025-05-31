@@ -56,8 +56,8 @@ export async function POST(request: Request) {
   }
 
   // Retrieve parent elements by name.
-  const element1 = await getElementByName(name1);
-  const element2 = await getElementByName(name2);
+  const element1 = await getElementByName(name1) as { _id: { toString(): string }, name: string, description: string, combinedFrom?: string[] };
+  const element2 = await getElementByName(name2) as { _id: { toString(): string }, name: string, description: string, combinedFrom?: string[] };
 
   //console.log("Processing element combination:", { name1, name2 });
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     for (const el of allElements) {
       if (el.combinedFrom && Array.isArray(el.combinedFrom)) {
         const parentIds = [element1._id.toString(), element2._id.toString()].sort();
-        const elParentIds = el.combinedFrom.map(id => id.toString()).sort();
+        const elParentIds: string[] = (el.combinedFrom as (string | { toString(): string })[]).map(id => id.toString()).sort();
         if (JSON.stringify(elParentIds) === JSON.stringify(parentIds)) {
           console.log(`Element "${el.name}" already exists with parents "${element1.name}" and "${element2.name}".`);
           return NextResponse.json({
@@ -109,8 +109,8 @@ export async function POST(request: Request) {
     
     // Create new element with combinedFrom field.
     const newElement = await createElement(newElementName, imageUrl, newElementDescription, [
-      element1._id,
-      element2._id,
+      element1._id.toString(),
+      element2._id.toString(),
     ]);
     console.log(`Created new element "${newElement.name}" with ID "${newElement._id}".`);
     return NextResponse.json({
@@ -118,16 +118,9 @@ export async function POST(request: Request) {
       element: newElement,
     }, { status: 201 });
 
-  } catch (error: any) {
-    console.error('[ELEMENT_POST_ERROR]', error);
-    if (error.code === 11000) {
-      return NextResponse.json({
-        message: `Element with name '${error.keyValue?.name || 'unknown'}' already exists.`,
-        error: error.message
-      }, { status: 409 });
-    }
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return NextResponse.json({ message: 'Failed to create element.', error: errorMessage }, { status: 500 });
+  } catch {
+    console.error('[ELEMENT_POST_ERROR]');
+    return NextResponse.json({ message: 'Failed to create element.' }, { status: 500 });
   }
 }
 
@@ -136,7 +129,7 @@ export async function POST(request: Request) {
  *
  * Requires a specific confirmation query parameter, which is stricter in production.
  */
-export async function DELETE(request: Request) {
+export async function DELETE() {
   try {
     const deletionResult = await deleteAllElements();
     console.log(`Deleted ${deletionResult.deletedCount || 0} elements.`);

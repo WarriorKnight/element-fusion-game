@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDB, Element } from '../../db/db';
 
-export async function GET(request: Request) {
+export async function GET() {
   await connectToDB();
 
   const elements = await Element.find({}).exec();
@@ -12,11 +12,16 @@ export async function GET(request: Request) {
     imgUrl: el.iconUrl
   }));
 
-  const links = elements
-    .filter(el => el.combinedFrom && el.combinedFrom.length === 2)
+  interface Link {
+    source: string;
+    target: string;
+  }
+
+  const links: Link[] = elements
+    .filter((el): el is typeof el & { combinedFrom: [unknown, unknown] } => Array.isArray(el.combinedFrom) && el.combinedFrom.length === 2)
     .flatMap(el =>
-      el.combinedFrom!.map(parentId => ({
-        source: parentId.toString(),
+      el.combinedFrom!.map((parentId: unknown): Link => ({
+        source: String(parentId),
         target: el._id.toString(),
       }))
     );

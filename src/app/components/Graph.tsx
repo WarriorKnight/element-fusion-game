@@ -9,7 +9,7 @@ interface GraphProps {
 }
 
 export default function GraphComponent({ nodes, links }: GraphProps) {
-  const fgRef = useRef<any>();
+  const fgRef = useRef<import('react-force-graph-2d').ForceGraphMethods | undefined>(undefined);
   const [nodeImages, setNodeImages] = useState<Record<string, HTMLImageElement>>({});
 
   // Preload images
@@ -30,12 +30,14 @@ export default function GraphComponent({ nodes, links }: GraphProps) {
   useEffect(() => {
     if (fgRef.current) {
       // Increase repulsion between nodes
-      fgRef.current.d3Force('charge').strength(-4000);
-      fgRef.current.d3Force('link').distance(60);
+      fgRef.current.d3Force('charge')?.strength(-4000);
+      fgRef.current.d3Force('link')?.distance(60);
       
       // Add timeout to ensure graph has time to layout before zooming
       setTimeout(() => {
-        fgRef.current.zoomToFit(800, 100);
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(800, 100);
+        }
       }, 300);
     }
   }, [nodes, links]);
@@ -55,16 +57,16 @@ export default function GraphComponent({ nodes, links }: GraphProps) {
         backgroundColor="rgba(23, 34, 136, 0)"
         // Custom link rendering for arrows
         linkCanvasObjectMode={() => "after"}
-        linkCanvasObject={(link: any, ctx) => {
+        linkCanvasObject={(link: import('react-force-graph-2d').LinkObject, ctx) => {
           // Draw custom white arrows
-          const start = link.source;
-          const end = link.target;
+          const start = link.source as { x: number; y: number };
+          const end = link.target as { x: number; y: number };
           
           // Calculate arrow position
           const dx = end.x - start.x;
           const dy = end.y - start.y;
           const angle = Math.atan2(dy, dx);
-          const dist = Math.sqrt(dx * dx + dy * dy);
+
           
           // Arrow parameters
           const arrowLength = 10;
@@ -88,8 +90,9 @@ export default function GraphComponent({ nodes, links }: GraphProps) {
           ctx.closePath();
           ctx.fillStyle = "#FFFFFF";
           ctx.fill();
-        }}
-        nodeCanvasObject={(node: any, ctx, globalScale) => {
+        }} 
+        
+        nodeCanvasObject={(node: any, ctx, globalScale) => { // eslint-disable-line
           // First draw a larger transparent hit area for better touch interaction
           const hitAreaSize = 40 / globalScale;
           ctx.beginPath();

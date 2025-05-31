@@ -16,6 +16,24 @@ interface CanvasProps {
   onDropElement: (element: PlacedElementData, parentIds?: string[]) => void;
 }
 
+// New component for cycling loading text
+function LoadingText() {
+  const [text, setText] = useState('Loading.');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setText(prev => {
+        switch (prev) {
+          case 'Loading.': return 'Loading..';
+          case 'Loading..': return 'Loading...';
+          default: return 'Loading.';
+        }
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+  return <div className="loader">{text}</div>;
+}
+
 export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
   const onDropElementRef = useRef(onDropElement);
   useEffect(() => {
@@ -94,7 +112,7 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
     <div
       ref={setNodeRef}
       className={`w-full h-full border rounded-4xl relative overflow-hidden transition-colors duration-200
-         ${isOver ? 'border-green-300 bg-black' : 'border-gray-200'}`}
+         ${isOver ? 'border-green-300' : 'border-gray-200'}`}
       style={{ position: 'relative' }}
     >
       {placedElements.map(el => (
@@ -113,9 +131,9 @@ export default function Canvas({ placedElements, onDropElement }: CanvasProps) {
       ))}
       {isLoading && (
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"
+          className="absolute inset-0 flex items-center justify-center bg-black/50 z-10 backdrop-blur-sm transition-opacity duration-300"
         >
-          <div className="loader">Loading...</div>
+          <LoadingText />
         </div>
       )}
     </div>

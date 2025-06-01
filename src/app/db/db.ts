@@ -48,23 +48,19 @@ const MONGODB_URI = process.env.MONGODB_URI;
  */
 async function connectToDB() {
   if (!MONGODB_URI) {
-    console.error('[DB] MONGODB_URI is not defined. Cannot connect.');
     throw new Error('MONGODB_URI is not defined.');
   }
 
   // If already connected, exit early.
   if (mongoose.connection.readyState >= 1) {
-    console.log('[DB] MongoDB connection already established.');
     return;
   }
 
   try {
     await mongoose.connect(MONGODB_URI as string, {});
-    console.log('[DB] Successfully connected to MongoDB.');
   } catch {
     throw new Error('Failed to connect to MongoDB.');
   }
-  console.log('[DB] connectToDB function finished.');
 }
 
 export { connectToDB, Element };

@@ -2,12 +2,35 @@
 
 import React from 'react';
 
+/**
+ * Props for the ResetModalContent component.
+ */
 export interface ResetModalContentProps {
+  /**
+   * Indicates whether the reset process is currently in progress.
+   */
   isResetting: boolean;
+  /**
+   * Callback function to execute when the cancel button is clicked.
+   */
   onCancel: () => void;
+  /**
+   * Callback function to execute when the reset button is clicked.
+   */
   onReset: () => void;
 }
 
+/**
+ * ResetModalContent component.
+ *
+ * This component renders the content to be displayed inside a modal when the user wishes
+ * to reset all progress. It includes a warning message and two buttons: one for cancelling
+ * the reset action and another for performing the reset. While the reset operation is in progress,
+ * the reset button displays an animated spinner.
+ *
+ * @param props - The ResetModalContentProps object containing the component's properties.
+ * @returns The rendered ResetModalContent component.
+ */
 export default function ResetModalContent({ isResetting, onCancel, onReset }: ResetModalContentProps) {
   return (
     <>
@@ -30,8 +53,20 @@ export default function ResetModalContent({ isResetting, onCancel, onReset }: Re
         >
           {isResetting ? (
             <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
                 <path
                   className="opacity-75"
                   fill="currentColor"

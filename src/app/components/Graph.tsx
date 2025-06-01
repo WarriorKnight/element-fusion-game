@@ -67,48 +67,14 @@ export default function GraphComponent({ nodes, links }: GraphProps) {
         ref={fgRef}
         graphData={{ nodes, links }}
         nodeAutoColorBy="id"
-        nodeRelSize={10}               // Increased from default (useful for base hit area)
-        linkDirectionalArrowLength={20}
-        linkDirectionalArrowRelPos={0.7}
+        nodeRelSize={75}
+        linkDirectionalArrowLength={40}
+        linkDirectionalArrowRelPos={5}
         linkDirectionalArrowColor={() => "#FFFFFF"}
         linkWidth={1}
         linkColor={() => "#FFFFFF"}
         backgroundColor="rgba(23, 34, 136, 0)"
-        // Custom link rendering for arrows.
-        linkCanvasObjectMode={() => "after"}
-        linkCanvasObject={(link: import('react-force-graph-2d').LinkObject, ctx) => {
-          // Draw custom white arrows on link paths.
-          const start = link.source as { x: number; y: number };
-          const end = link.target as { x: number; y: number };
-          
-          // Calculate direction angle for arrow rendering.
-          const dx = end.x - start.x;
-          const dy = end.y - start.y;
-          const angle = Math.atan2(dy, dx);
 
-          // Arrow parameters.
-          const arrowLength = 10;
-          const arrowPos = 0.7; // 70% along the line.
-          
-          // Calculate arrow tip position.
-          const arrowX = start.x + dx * arrowPos;
-          const arrowY = start.y + dy * arrowPos;
-          
-          // Draw arrow shape.
-          ctx.beginPath();
-          ctx.moveTo(arrowX, arrowY);
-          ctx.lineTo(
-            arrowX - arrowLength * Math.cos(angle - Math.PI / 7),
-            arrowY - arrowLength * Math.sin(angle - Math.PI / 7)
-          );
-          ctx.lineTo(
-            arrowX - arrowLength * Math.cos(angle + Math.PI / 7),
-            arrowY - arrowLength * Math.sin(angle + Math.PI / 7)
-          );
-          ctx.closePath();
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fill();
-        }}
         // Custom node rendering on canvas.
         nodeCanvasObject={(node: any, ctx, globalScale) => { // eslint-disable-line
           // Draw a larger transparent hit area for better touch interaction.

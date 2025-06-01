@@ -1,6 +1,6 @@
 import { DragEndEvent, UniqueIdentifier } from '@dnd-kit/core';
-import { ElementData } from './components/Toolbar';
-import { PlacedElementData } from './components/Canvas';
+import { ElementData } from './../components/Toolbar';
+import { PlacedElementData } from './../components/Canvas';
 
 interface CalculateDropCoordinatesProps {
   active: DragEndEvent['active'];

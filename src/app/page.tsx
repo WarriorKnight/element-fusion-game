@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import Header from './components/Header';
 import Toolbar, { ElementData } from './components/Toolbar';
 import Canvas, { PlacedElementData } from './components/Canvas';
 import Element from './components/Element';
@@ -129,9 +130,11 @@ export default function DesignerPage() {
     });
   }
 
+  // Render
   return (
-    <div>
-      <div>
+    <div className="crt-container">
+      <div className="crt-content">
+        <div className="crt-rgb-shift"></div>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -139,26 +142,12 @@ export default function DesignerPage() {
           onDragEnd={handleDragEnd}
         >
           <div className="flex flex-col h-screen">
-            {/* Header */}
-            <div className="bg-blue-600 p-2 text-white">
-              <div className="container mx-auto flex justify-between items-center">
-                <h1 className="text-xl font-bold">Element Fusion Game</h1>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowResetConfirmation(true)}
-                    className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors"
-                  >
-                    Reset Progress
-                  </button>
-                  <button
-                    onClick={toggleGraph}
-                    className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors"
-                  >
-                    {showGraph ? "Hide Graph" : "Show Graph"}
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Header extracted into separate file */}
+            <Header
+              onResetConfirmation={() => setShowResetConfirmation(true)}
+              onToggleGraph={toggleGraph}
+              showGraph={showGraph}
+            />
             {/* Toolbar and Canvas */}
             <Toolbar elements={toolbarElements} />
             <div className="flex-1 p-4">
